@@ -48,6 +48,25 @@ cd stats-api       && php artisan serve --port=8001
 cd web             && npm run dev
 ```
 
+## Run everything in Docker
+
+Build and start all five services together with Postgres and Redis:
+
+```bash
+docker compose --profile apps up --build -d
+```
+
+Then open http://localhost:5173. Health endpoints are at `:8000/livez`, `:8080/health`, and `:8001/api/health`.
+
+To watch logs or stop the stack:
+
+```bash
+docker compose --profile apps logs -f
+docker compose --profile apps down
+```
+
+Add `-v` to `down` to also delete the Postgres and Redis data. Without `--profile apps`, only Postgres and Redis start, which is the setup used by "Run a service locally" above.
+
 ## Tests
 
 ```bash

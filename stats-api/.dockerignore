@@ -1,0 +1,6 @@
+vendor/
+tests/
+.phpunit.result.cache
+Dockerfile
+.dockerignore
+.env

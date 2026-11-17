@@ -1,6 +1,9 @@
 # Local development infrastructure for Dhaba Orders.
-# Only the two stateful services run here; the app services run on your Mac
-# during development and get their own containers in Phase 1.
+#
+# Default (no profile): only Postgres and Redis, for running the app services
+# directly on your Mac.
+# With the "apps" profile: all five services are built and run in containers:
+#   docker compose --profile apps up --build -d
 services:
   postgres:
     image: postgres:16-alpine
@@ -36,6 +39,115 @@ services:
       interval: 5s
       timeout: 3s
       retries: 10
+    restart: unless-stopped
+
+  menu-api:
+    profiles: ["apps"]
+    build: ./menu-api
+    container_name: dhaba-menu-api
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      MENU_CACHE_TTL_SECONDS: ${MENU_CACHE_TTL_SECONDS:-60}
+      APP_VERSION: ${APP_VERSION:-dev}
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  orders-api:
+    profiles: ["apps"]
+    build: ./orders-api
+    container_name: dhaba-orders-api
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: ${POSTGRES_DB}
+      DB_USER: ${POSTGRES_USER}
+      DB_PASSWORD: ${POSTGRES_PASSWORD}
+      DB_SSLMODE: disable
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      PORT: 8080
+      APP_VERSION: ${APP_VERSION:-dev}
+      CORS_ORIGIN: "${CORS_ORIGIN:-*}"
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  kitchen-worker:
+    profiles: ["apps"]
+    build: ./kitchen-worker
+    container_name: dhaba-kitchen-worker
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: ${POSTGRES_DB}
+      DB_USER: ${POSTGRES_USER}
+      DB_PASSWORD: ${POSTGRES_PASSWORD}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      COOKING_SECONDS: ${COOKING_SECONDS:-8}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  stats-api:
+    profiles: ["apps"]
+    build: ./stats-api
+    container_name: dhaba-stats-api
+    environment:
+      APP_NAME: stats-api
+      APP_ENV: local
+      APP_DEBUG: "true"
+      APP_KEY: ${APP_KEY:?copy .env.example to .env first}
+      APP_URL: http://localhost:8001
+      LOG_CHANNEL: stderr
+      REDIS_CLIENT: predis
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      REDIS_DB: 0
+    ports:
+      - "8001:8001"
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  web:
+    profiles: ["apps"]
+    build: ./web
+    container_name: dhaba-web
+    environment:
+      MENU_API_URL: http://menu-api:8000
+      ORDERS_API_URL: http://orders-api:8080
+      STATS_API_URL: http://stats-api:8001
+    ports:
+      - "5173:80"
+    depends_on:
+      - menu-api
+      - orders-api
+      - stats-api
     restart: unless-stopped
 
 volumes:

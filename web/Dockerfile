@@ -13,6 +13,6 @@ COPY nginx/default.conf.template /etc/nginx/templates/default.conf.template
 
 ENV MENU_API_URL=http://menu-api:8000 \
     ORDERS_API_URL=http://orders-api:8080 \
-    STATS_API_URL=http://stats-api:8000
+    STATS_API_URL=http://stats-api:8001
 
 EXPOSE 80
