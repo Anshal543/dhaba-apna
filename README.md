@@ -16,10 +16,12 @@ How the services talk to each other: [`docs/CONTRACT.md`](docs/CONTRACT.md).
 ## First-time setup
 
 ```bash
-cp .env.example .env          # already done if .env exists
-docker compose up -d          # Postgres (schema + seed) and Redis
-docker compose ps             # both services should say "healthy"
+cp .env.example .env
+docker compose up -d
+docker compose ps
 ```
+
+`cp` is already done if `.env` exists. `docker compose up -d` starts Postgres (schema + seed) and Redis. Both services should show `healthy` in `docker compose ps`.
 
 `db/init.sql` runs only when the Postgres volume is created. To apply a schema change, reset the data:
 
@@ -36,12 +38,14 @@ set -a && source .env && set +a
 
 ## Run a service locally
 
+Run each command from the repo root in its own terminal. Ports are listed in the table above; `kitchen-worker` is a worker and listens on no port.
+
 ```bash
 cd menu-api        && source .venv/bin/activate && uvicorn app.main:app --reload --port 8000
-cd orders-api      && go run .                         # :8080
-cd kitchen-worker  && mvn spring-boot:run              # no port
-cd stats-api       && php artisan serve --port=8001    # :8001
-cd web             && npm run dev                      # :5173
+cd orders-api      && go run .
+cd kitchen-worker  && mvn spring-boot:run
+cd stats-api       && php artisan serve --port=8001
+cd web             && npm run dev
 ```
 
 ## Tests
