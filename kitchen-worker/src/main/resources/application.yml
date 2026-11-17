@@ -1,0 +1,19 @@
+spring:
+  application:
+    name: kitchen-worker
+  main:
+    web-application-type: none        # worker only, no HTTP port
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:dhaba}
+    username: ${DB_USER:dhaba}
+    password: ${DB_PASSWORD:dhaba}
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+
+kitchen:
+  queue-key: orders:queue
+  cooking-seconds: ${COOKING_SECONDS:8}
+  poll-seconds: 5

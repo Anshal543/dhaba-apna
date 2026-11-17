@@ -1,0 +1,18 @@
+# secrets and local settings
+.env
+*.pem
+kubeconfig*
+*.kubeconfig
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
+
+# per-stack build output (added to as services appear)
+node_modules/
+__pycache__/
+.venv/
+target/
+vendor/
+dist/
