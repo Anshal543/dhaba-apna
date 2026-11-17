@@ -6,7 +6,7 @@ spring:
   datasource:
     url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:dhaba}
     username: ${DB_USER:dhaba}
-    password: ${DB_PASSWORD:dhaba}
+    password: ${DB_PASSWORD:dhaba_local_dev}
   data:
     redis:
       host: ${REDIS_HOST:localhost}

@@ -16,4 +16,4 @@ Run locally (from this folder, with `docker compose up -d` running in the parent
     pip install -r requirements-dev.txt
     pytest
     ruff check .
-    uvicorn app.main:app --reload --port 8001
+    uvicorn app.main:app --reload --port 8000

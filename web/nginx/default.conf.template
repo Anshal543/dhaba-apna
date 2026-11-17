@@ -2,7 +2,7 @@
 # Upstream URLs come from env vars; defaults are set in the Dockerfile.
 #   MENU_API_URL   e.g. http://menu-api:8000
 #   ORDERS_API_URL e.g. http://orders-api:8080
-#   STATS_API_URL  e.g. http://stats-api:8000
+#   STATS_API_URL  e.g. http://stats-api:8000  (local dev uses :8001; see .env)
 
 server {
     listen 80;
@@ -25,7 +25,9 @@ server {
     # --- API: same origin for the browser, forwarded to the backend services ---
 
     location /api/menu {
-        proxy_pass ${MENU_API_URL}/menu;
+        # menu-api serves /api/menu. A variable in proxy_pass does not keep the
+        # request URI unless it is appended here.
+        proxy_pass ${MENU_API_URL}$request_uri;
         proxy_set_header Host $host;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
     }
@@ -37,7 +39,10 @@ server {
     }
 
     location /api/orders {
-        proxy_pass ${ORDERS_API_URL}/orders;
+        # /api/orders and /api/orders/{id} -> orders-api /orders and /orders/{id}.
+        # A URI on a variable proxy_pass would drop the {id} suffix.
+        rewrite ^/api/orders(.*)$ /orders$1 break;
+        proxy_pass ${ORDERS_API_URL};
         proxy_set_header Host $host;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
     }

@@ -1,5 +1,7 @@
 -- Dhaba Orders schema and seed data.
--- Runs once, when the Postgres volume is first created.
+-- Applied once, when the Postgres volume is first created.
+-- menu-api reads menu_items. orders-api stores each order as one row
+-- (items is a JSON array). kitchen-worker advances status and updated_at.
 
 CREATE TABLE menu_items (
     id          SERIAL PRIMARY KEY,
@@ -11,25 +13,16 @@ CREATE TABLE menu_items (
 );
 
 CREATE TABLE orders (
-    id            SERIAL PRIMARY KEY,
-    customer_name TEXT        NOT NULL,
-    status        TEXT        NOT NULL DEFAULT 'new'
-                  CHECK (status IN ('new', 'cooking', 'ready')),
-    total_pkr     INTEGER     NOT NULL CHECK (total_pkr >= 0),
-    created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
-    updated_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+    id          BIGSERIAL PRIMARY KEY,
+    customer    TEXT        NOT NULL,
+    items       JSONB       NOT NULL,
+    status      TEXT        NOT NULL DEFAULT 'new'
+                CHECK (status IN ('new', 'cooking', 'ready')),
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE TABLE order_items (
-    id            SERIAL PRIMARY KEY,
-    order_id      INTEGER NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
-    menu_item_id  INTEGER NOT NULL REFERENCES menu_items(id),
-    quantity      INTEGER NOT NULL CHECK (quantity > 0),
-    unit_price_pkr INTEGER NOT NULL CHECK (unit_price_pkr > 0)
-);
-
-CREATE INDEX idx_orders_status     ON orders(status);
-CREATE INDEX idx_order_items_order ON order_items(order_id);
+CREATE INDEX idx_orders_status ON orders (status);
 
 INSERT INTO menu_items (name, description, category, price_pkr) VALUES
  ('Chicken Karahi',  'Wok-cooked chicken with tomato, ginger and green chilli', 'Mains',   1800),

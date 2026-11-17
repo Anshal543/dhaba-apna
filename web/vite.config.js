@@ -12,7 +12,8 @@ export default defineConfig({
   server: {
     port: 5173,
     proxy: {
-      '/api/menu': { target: menu, rewrite: (p) => p.replace(/^\/api\/menu/, '/menu') },
+      // menu-api already serves /api/menu (and /api/menu/{id}).
+      '/api/menu': { target: menu },
       '/api/orders': { target: orders, rewrite: (p) => p.replace(/^\/api\/orders/, '/orders') },
       '/api/info': { target: orders, rewrite: () => '/info' },
       '/api/stats': { target: stats },

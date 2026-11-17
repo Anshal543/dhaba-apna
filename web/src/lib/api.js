@@ -64,7 +64,7 @@ export function normalizeMenu(body) {
     .map((m) => ({
       id: m.id ?? m.name,
       name: m.name,
-      price: Number(m.price) || 0,
+      price: Number(m.price ?? m.price_pkr) || 0,
       description: m.description || '',
       category: m.category || '',
     }))

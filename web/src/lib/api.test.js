@@ -29,6 +29,7 @@ test('normalizeMenu accepts { items }, skips nameless rows, tolerates junk', () 
   assert.deepEqual(normalizeMenu({}), [])
   assert.equal(normalizeMenu([{ name: 'Naan' }])[0].id, 'Naan')
   assert.equal(normalizeMenu([{ name: 'Naan', price: 'x' }])[0].price, 0)
+  assert.equal(normalizeMenu([{ name: 'Karahi', price_pkr: 1800 }])[0].price, 1800)
 })
 
 test('createOrder POSTs JSON to /api/orders', async () => {
