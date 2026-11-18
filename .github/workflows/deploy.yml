@@ -33,10 +33,9 @@ jobs:
       - name: Check configuration
         env:
           POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
-          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
           APP_KEY: ${{ secrets.APP_KEY }}
         run: |
-          for key in POSTGRES_PASSWORD DB_PASSWORD APP_KEY; do
+          for key in POSTGRES_PASSWORD APP_KEY; do
             if [ -z "${!key}" ]; then
               echo "Missing secret: $key" >&2
               exit 1
@@ -81,7 +80,6 @@ jobs:
       - name: Create namespace and application config
         env:
           POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
-          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
           APP_KEY: ${{ secrets.APP_KEY }}
           REDIS_PASSWORD: ${{ secrets.REDIS_PASSWORD }}
         run: |
@@ -90,7 +88,7 @@ jobs:
             --from-file=init.sql=db/init.sql --dry-run=client -o yaml | kubectl apply -f -
           kubectl -n "$NAMESPACE" create secret generic dhaba-secrets \
             --from-literal=POSTGRES_PASSWORD="$POSTGRES_PASSWORD" \
-            --from-literal=DB_PASSWORD="$DB_PASSWORD" \
+            --from-literal=DB_PASSWORD="$POSTGRES_PASSWORD" \
             --from-literal=APP_KEY="$APP_KEY" \
             --from-literal=REDIS_PASSWORD="$REDIS_PASSWORD" \
             --dry-run=client -o yaml | kubectl apply -f -

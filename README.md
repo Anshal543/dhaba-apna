@@ -129,11 +129,10 @@ gh variable set KIND_CLUSTER_NAME --body dhaba
 gh secret set AWS_ACCESS_KEY_ID
 gh secret set AWS_SECRET_ACCESS_KEY
 gh secret set POSTGRES_PASSWORD
-gh secret set DB_PASSWORD
 gh secret set APP_KEY --body "$(php -r 'echo "base64:".base64_encode(random_bytes(32));')"
 ```
 
-`AWS_REGION`, `AWS_ACCOUNT_ID` and `KIND_CLUSTER_NAME` are variables; everything else is a secret. `REDIS_PASSWORD` is optional. Deploy jobs are skipped until `KIND_CLUSTER_NAME` is set. Create environments with `gh api -X POST repos/:owner/:repo/environments -f name=staging` and the same for `production`, then add required reviewers to `production` in Settings → Environments; reviewers cannot be set by the CLI easily.
+`AWS_REGION`, `AWS_ACCOUNT_ID` and `KIND_CLUSTER_NAME` are variables; everything else is a secret. `POSTGRES_PASSWORD` is reused as `DB_PASSWORD` for the services, so one secret is enough. `REDIS_PASSWORD` is optional. Deploy jobs are skipped until `KIND_CLUSTER_NAME` is set. Create environments with `gh api -X POST repos/:owner/:repo/environments -f name=staging` and the same for `production`, then add required reviewers to `production` in Settings → Environments; reviewers cannot be set by the CLI easily.
 
 After a successful deploy, staging is at `http://<EC2_PUBLIC_IP>/healthz` and production is at `http://<EC2_PUBLIC_IP>:8080/healthz`. Rotate the access keys and never commit them.
 

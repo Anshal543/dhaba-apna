@@ -27,10 +27,12 @@ spec:
             - secretRef:
                 name: dhaba-secrets
           readinessProbe:
+            initialDelaySeconds: 35
             httpGet:
               path: /health
               port: 8080
           livenessProbe:
+            initialDelaySeconds: 35
             httpGet:
               path: /health
               port: 8080
