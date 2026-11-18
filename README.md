@@ -107,9 +107,9 @@ The pipeline authenticates with an IAM user access key stored in GitHub Secrets,
 }
 ```
 
-Set up the EC2 host (x86_64, Ubuntu 24.04 or Amazon Linux 2023, at least t3.large; open inbound 22, 80 and 8080):
+Set up the EC2 host (x86_64, Ubuntu 24.04 or Amazon Linux 2023, at least t3.large; open inbound 22, 80 and 443):
 
-1. Clone the repo and run `./scripts/setup-kind-host.sh` from the repo root. It installs Docker, kind and kubectl, then creates the cluster using `kind-config.yaml`. The config maps staging web on host port 80 and production web on host port 8080.
+1. Clone the repo and run `./scripts/setup-kind-host.sh` from the repo root. It installs Docker, kind and kubectl, then creates the cluster using `kind-config.yaml`. The config maps host ports 80 and 443 to Traefik, which routes by hostname to staging or production.
 2. Add a self-hosted runner from Settings → Actions → Runners → New self-hosted runner. Register it as the same user that ran the setup script, with the `kind` label, and install it as a service:
 
 ```bash
@@ -126,15 +126,23 @@ Configure the repository with the GitHub CLI:
 gh variable set AWS_REGION --body us-east-1
 gh variable set AWS_ACCOUNT_ID --body 123456789012
 gh variable set KIND_CLUSTER_NAME --body dhaba
+gh variable set LETSENCRYPT_EMAIL --body admin@anshal.space
 gh secret set AWS_ACCESS_KEY_ID
 gh secret set AWS_SECRET_ACCESS_KEY
 gh secret set POSTGRES_PASSWORD
 gh secret set APP_KEY --body "$(php -r 'echo "base64:".base64_encode(random_bytes(32));')"
 ```
 
-`AWS_REGION`, `AWS_ACCOUNT_ID` and `KIND_CLUSTER_NAME` are variables; everything else is a secret. `POSTGRES_PASSWORD` is reused as `DB_PASSWORD` for the services, so one secret is enough. `REDIS_PASSWORD` is optional. Deploy jobs are skipped until `KIND_CLUSTER_NAME` is set. Create environments with `gh api -X POST repos/:owner/:repo/environments -f name=staging` and the same for `production`, then add required reviewers to `production` in Settings → Environments; reviewers cannot be set by the CLI easily.
+`AWS_REGION`, `AWS_ACCOUNT_ID`, `KIND_CLUSTER_NAME` and `LETSENCRYPT_EMAIL` are variables; everything else is a secret. `POSTGRES_PASSWORD` is reused as `DB_PASSWORD` for the services, so one secret is enough. `REDIS_PASSWORD` is optional. Deploy jobs are skipped until `KIND_CLUSTER_NAME` is set. Create environments with `gh api -X POST repos/:owner/:repo/environments -f name=staging` and the same for `production`, then add required reviewers to `production` in Settings → Environments; reviewers cannot be set by the CLI easily.
 
-After a successful deploy, staging is at `http://<EC2_PUBLIC_IP>/healthz` and production is at `http://<EC2_PUBLIC_IP>:8080/healthz`. Rotate the access keys and never commit them.
+Point DNS `A` records for `staging.anshal.space` and `anshal.space` at the EC2 public IP. The deploy workflow installs Traefik from `k8s/traefik/traefik.yaml`, exposes it on host ports 80/443, and applies one Ingress per environment. Let's Encrypt certificates are obtained with the HTTP-01 challenge, so DNS must resolve before the first deploy. The ACME file is on an `emptyDir`, so a Traefik pod restart requests new certificates.
+
+After a successful deploy:
+
+- Staging: `https://staging.anshal.space/healthz`
+- Production: `https://anshal.space/healthz`
+
+Rotate the access keys and never commit them.
 
 The manifests run Postgres and Redis inside each namespace on persistent volumes. Use RDS and ElastiCache instead for real production workloads.
 

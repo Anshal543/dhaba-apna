@@ -77,6 +77,12 @@ jobs:
             docker pull "$image"
             kind load docker-image "$image" --name "$KIND_CLUSTER_NAME"
           done
+      - name: Install Traefik
+        env:
+          LETSENCRYPT_EMAIL: ${{ vars.LETSENCRYPT_EMAIL || 'sherhasan543@gmail.com' }}
+        run: |
+          sed "s|__LETSENCRYPT_EMAIL__|$LETSENCRYPT_EMAIL|g" k8s/traefik/traefik.yaml | kubectl apply -f -
+          kubectl -n traefik rollout status deployment/traefik --timeout=5m
       - name: Create namespace and application config
         env:
           POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
