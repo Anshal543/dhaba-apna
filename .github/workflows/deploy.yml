@@ -22,6 +22,7 @@ jobs:
     environment: ${{ inputs.environment }}
     env:
       AWS_REGION: ${{ vars.AWS_REGION }}
+      AWS_ACCOUNT_ID: ${{ vars.AWS_ACCOUNT_ID }}
       ECR_REGISTRY: ${{ vars.AWS_ACCOUNT_ID }}.dkr.ecr.${{ vars.AWS_REGION }}.amazonaws.com
       ENVIRONMENT: ${{ inputs.environment }}
       NAMESPACE: ${{ inputs.namespace }}
