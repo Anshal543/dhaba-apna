@@ -51,10 +51,13 @@ jobs:
           for tool in docker kind kubectl; do
             command -v "$tool" >/dev/null || { echo "$tool is required on the runner" >&2; exit 1; }
           done
-          kind get clusters | grep -qx "$KIND_CLUSTER_NAME" || {
-            echo "kind cluster '$KIND_CLUSTER_NAME' is missing on this host" >&2
-            exit 1
-          }
+      - name: Ensure kind cluster is running
+        run: |
+          if ! kubectl cluster-info --context "kind-$KIND_CLUSTER_NAME" >/dev/null 2>&1; then
+            echo "kind cluster '$KIND_CLUSTER_NAME' is not reachable; recreating it"
+            kind delete cluster --name "$KIND_CLUSTER_NAME" || true
+            kind create cluster --name "$KIND_CLUSTER_NAME" --config kind-config.yaml
+          fi
       - uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
