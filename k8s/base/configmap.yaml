@@ -1,0 +1,31 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: dhaba-config
+data:
+  POSTGRES_HOST: postgres
+  POSTGRES_PORT: "5432"
+  POSTGRES_USER: dhaba
+  POSTGRES_DB: dhaba
+  DB_HOST: postgres
+  DB_PORT: "5432"
+  DB_NAME: dhaba
+  DB_USER: dhaba
+  DB_SSLMODE: disable
+  REDIS_HOST: redis
+  REDIS_PORT: "6379"
+  REDIS_DB: "0"
+  REDIS_CLIENT: predis
+  PORT: "8080"
+  APP_VERSION: dev
+  APP_NAME: stats-api
+  APP_ENV: staging
+  APP_DEBUG: "true"
+  APP_URL: http://localhost:8001
+  LOG_CHANNEL: stderr
+  CORS_ORIGIN: "*"
+  COOKING_SECONDS: "8"
+  MENU_CACHE_TTL_SECONDS: "60"
+  MENU_API_URL: http://menu-api:8000
+  ORDERS_API_URL: http://orders-api:8080
+  STATS_API_URL: http://stats-api:8001

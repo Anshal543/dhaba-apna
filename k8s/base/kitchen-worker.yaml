@@ -1,0 +1,30 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kitchen-worker
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: kitchen-worker
+  template:
+    metadata:
+      labels:
+        app: kitchen-worker
+    spec:
+      containers:
+        - name: kitchen-worker
+          image: kitchen-worker
+          envFrom:
+            - configMapRef:
+                name: dhaba-config
+            - secretRef:
+                name: dhaba-secrets
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              memory: 512Mi

@@ -1,0 +1,142 @@
+name: CI/CD
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: dhaba-cicd-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  analyze:
+    name: Static analysis
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: orders-api/go.mod
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - name: Install dependencies
+        run: |
+          pip install -r menu-api/requirements-dev.txt
+          npm ci --prefix web
+      - name: Run static analysis
+        run: ./scripts/lint-all.sh
+
+  test:
+    name: Unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: orders-api/go.mod
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          tools: composer
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - name: Install dependencies
+        run: |
+          pip install -r menu-api/requirements-dev.txt
+          composer install --working-dir=stats-api --no-interaction --prefer-dist
+          npm ci --prefix web
+      - name: Run unit tests
+        run: ./scripts/test-all.sh
+
+  build-push:
+    name: Build and push to ECR
+    if: github.event_name == 'push'
+    needs: [analyze, test]
+    runs-on: ubuntu-latest
+    outputs:
+      image-tag: ${{ steps.meta.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ vars.AWS_REGION }}
+      - uses: aws-actions/amazon-ecr-login@v2
+        id: ecr
+      - name: Build and push
+        env:
+          REGISTRY: ${{ steps.ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          for svc in web menu-api orders-api kitchen-worker stats-api; do
+            image="$REGISTRY/dhaba-tactech/$svc:$IMAGE_TAG"
+            docker build --tag "$image" "./$svc"
+            docker push "$image"
+          done
+      - name: Publish image tag
+        id: meta
+        env:
+          IMAGE_TAG: ${{ github.sha }}
+        run: echo "tag=$IMAGE_TAG" >> "$GITHUB_OUTPUT"
+
+  deploy-staging:
+    name: Deploy to staging
+    if: github.event_name == 'push' && vars.EKS_CLUSTER_STAGING != ''
+    needs: build-push
+    permissions:
+      contents: read
+      id-token: write
+    uses: ./.github/workflows/deploy.yml
+    with:
+      environment: staging
+      cluster: ${{ vars.EKS_CLUSTER_STAGING }}
+      namespace: dhaba-staging
+      image-tag: ${{ needs.build-push.outputs.image-tag }}
+    secrets: inherit
+
+  deploy-production:
+    name: Deploy to production
+    if: github.event_name == 'push' && vars.EKS_CLUSTER_PRODUCTION != ''
+    needs: [build-push, deploy-staging]
+    permissions:
+      contents: read
+      id-token: write
+    uses: ./.github/workflows/deploy.yml
+    with:
+      environment: production
+      cluster: ${{ vars.EKS_CLUSTER_PRODUCTION }}
+      namespace: dhaba-production
+      image-tag: ${{ needs.build-push.outputs.image-tag }}
+    secrets: inherit

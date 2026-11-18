@@ -1,0 +1,21 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: dhaba-staging
+resources:
+  - ../../base
+images:
+  - name: web
+    newName: __ECR_REGISTRY__/dhaba-tactech/web
+    newTag: __IMAGE_TAG__
+  - name: menu-api
+    newName: __ECR_REGISTRY__/dhaba-tactech/menu-api
+    newTag: __IMAGE_TAG__
+  - name: orders-api
+    newName: __ECR_REGISTRY__/dhaba-tactech/orders-api
+    newTag: __IMAGE_TAG__
+  - name: kitchen-worker
+    newName: __ECR_REGISTRY__/dhaba-tactech/kitchen-worker
+    newTag: __IMAGE_TAG__
+  - name: stats-api
+    newName: __ECR_REGISTRY__/dhaba-tactech/stats-api
+    newTag: __IMAGE_TAG__
