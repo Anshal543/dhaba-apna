@@ -4,7 +4,13 @@ set -euo pipefail
 root="$(cd "$(dirname "$0")/.." && pwd)"
 
 echo "==> menu-api (Python)"
-(cd "$root/menu-api" && { [ -d .venv ] && . .venv/bin/activate; } && pytest -q)
+(
+  cd "$root/menu-api"
+  if [ -d .venv ]; then
+    . .venv/bin/activate
+  fi
+  pytest -q
+)
 
 echo "==> orders-api (Go)"
 (cd "$root/orders-api" && go test ./...)
@@ -13,9 +19,21 @@ echo "==> kitchen-worker (Java)"
 (cd "$root/kitchen-worker" && mvn -q test)
 
 echo "==> stats-api (PHP)"
-(cd "$root/stats-api" && { [ -d vendor ] || composer install --no-interaction; } && vendor/bin/phpunit)
+(
+  cd "$root/stats-api"
+  if [ ! -d vendor ]; then
+    composer install --no-interaction
+  fi
+  vendor/bin/phpunit
+)
 
 echo "==> web (React)"
-(cd "$root/web" && { [ -d node_modules ] || npm install; } && npm test)
+(
+  cd "$root/web"
+  if [ ! -d node_modules ]; then
+    npm install
+  fi
+  npm test
+)
 
 echo "All tests passed."

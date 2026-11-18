@@ -18,6 +18,12 @@ done < <(find "$root/stats-api/app" "$root/stats-api/bootstrap" "$root/stats-api
 echo "PHP syntax OK"
 
 echo "==> web (vite build)"
-(cd "$root/web" && { [ -d node_modules ] || npm ci; } && npm run build)
+(
+  cd "$root/web"
+  if [ ! -d node_modules ]; then
+    npm ci
+  fi
+  npm run build
+)
 
 echo "Static analysis passed."
