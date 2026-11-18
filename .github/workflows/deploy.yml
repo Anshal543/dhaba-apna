@@ -91,6 +91,17 @@ jobs:
             --from-literal=APP_KEY="$APP_KEY" \
             --from-literal=REDIS_PASSWORD="$REDIS_PASSWORD" \
             --dry-run=client -o yaml | kubectl apply -f -
+      - name: Clear stuck terminating pods
+        run: |
+          kubectl -n "$NAMESPACE" get pods \
+            -l 'app in (menu-api,orders-api,kitchen-worker,stats-api,web)' \
+            -o custom-columns=NAME:.metadata.name,DEL:.metadata.deletionTimestamp --no-headers |
+            while read -r name deleted; do
+              if [ "$deleted" != "<none>" ] && [ -n "$deleted" ]; then
+                echo "Force deleting stuck pod $name"
+                kubectl -n "$NAMESPACE" delete pod "$name" --grace-period=0 --force || true
+              fi
+            done
       - name: Apply manifests
         run: |
           cd "k8s/overlays/$ENVIRONMENT"
