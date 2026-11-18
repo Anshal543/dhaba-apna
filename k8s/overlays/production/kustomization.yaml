@@ -5,6 +5,7 @@ resources:
   - ../../base
 patches:
   - path: configmap-patch.yaml
+  - path: web-nodeport-patch.yaml
 images:
   - name: web
     newName: __ECR_REGISTRY__/dhaba-tactech/web

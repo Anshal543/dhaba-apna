@@ -15,6 +15,7 @@ spec:
       containers:
         - name: orders-api
           image: orders-api
+          imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8080
           envFrom:

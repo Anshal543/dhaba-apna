@@ -15,6 +15,7 @@ spec:
       containers:
         - name: web
           image: web
+          imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80
           envFrom:
@@ -36,9 +37,10 @@ kind: Service
 metadata:
   name: web
 spec:
-  type: LoadBalancer
+  type: NodePort
   selector:
     app: web
   ports:
     - port: 80
       targetPort: 80
+      nodePort: 30080

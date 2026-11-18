@@ -1,12 +1,9 @@
-name: Deploy to EKS
+name: Deploy to EC2 kind cluster
 
 on:
   workflow_call:
     inputs:
       environment:
-        required: true
-        type: string
-      cluster:
         required: true
         type: string
       namespace:
@@ -21,7 +18,7 @@ permissions:
 
 jobs:
   deploy:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, kind]
     environment: ${{ inputs.environment }}
     env:
       AWS_REGION: ${{ vars.AWS_REGION }}
@@ -29,9 +26,10 @@ jobs:
       ENVIRONMENT: ${{ inputs.environment }}
       NAMESPACE: ${{ inputs.namespace }}
       IMAGE_TAG: ${{ inputs.image-tag }}
+      KIND_CLUSTER_NAME: ${{ vars.KIND_CLUSTER_NAME }}
     steps:
       - uses: actions/checkout@v4
-      - name: Check required secrets
+      - name: Check configuration
         env:
           POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
           DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
@@ -43,15 +41,32 @@ jobs:
               exit 1
             fi
           done
+          for key in AWS_REGION AWS_ACCOUNT_ID IMAGE_TAG KIND_CLUSTER_NAME; do
+            if [ -z "${!key}" ]; then
+              echo "Missing variable: $key" >&2
+              exit 1
+            fi
+          done
+          for tool in docker kind kubectl; do
+            command -v "$tool" >/dev/null || { echo "$tool is required on the runner" >&2; exit 1; }
+          done
+          kind get clusters | grep -qx "$KIND_CLUSTER_NAME" || {
+            echo "kind cluster '$KIND_CLUSTER_NAME' is missing on this host" >&2
+            exit 1
+          }
       - uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ vars.AWS_REGION }}
-      - name: Configure kubectl
-        env:
-          CLUSTER: ${{ inputs.cluster }}
-        run: aws eks update-kubeconfig --name "$CLUSTER" --region "$AWS_REGION"
+      - name: Load images into kind
+        run: |
+          aws ecr get-login-password --region "$AWS_REGION" | docker login --username AWS --password-stdin "$ECR_REGISTRY"
+          for svc in web menu-api orders-api kitchen-worker stats-api; do
+            image="$ECR_REGISTRY/dhaba-tactech/$svc:$IMAGE_TAG"
+            docker pull "$image"
+            kind load docker-image "$image" --name "$KIND_CLUSTER_NAME"
+          done
       - name: Create namespace and application config
         env:
           POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}

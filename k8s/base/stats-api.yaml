@@ -15,6 +15,7 @@ spec:
       containers:
         - name: stats-api
           image: stats-api
+          imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8001
           envFrom:

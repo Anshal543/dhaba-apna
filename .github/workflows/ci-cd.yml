@@ -8,7 +8,6 @@ on:
 
 permissions:
   contents: read
-  id-token: write
 
 concurrency:
   group: dhaba-cicd-${{ github.ref }}
@@ -113,30 +112,26 @@ jobs:
 
   deploy-staging:
     name: Deploy to staging
-    if: github.event_name == 'push' && vars.EKS_CLUSTER_STAGING != ''
+    if: github.event_name == 'push' && vars.KIND_CLUSTER_NAME != ''
     needs: build-push
     permissions:
       contents: read
-      id-token: write
     uses: ./.github/workflows/deploy.yml
     with:
       environment: staging
-      cluster: ${{ vars.EKS_CLUSTER_STAGING }}
       namespace: dhaba-staging
       image-tag: ${{ needs.build-push.outputs.image-tag }}
     secrets: inherit
 
   deploy-production:
     name: Deploy to production
-    if: github.event_name == 'push' && vars.EKS_CLUSTER_PRODUCTION != ''
+    if: github.event_name == 'push' && vars.KIND_CLUSTER_NAME != ''
     needs: [build-push, deploy-staging]
     permissions:
       contents: read
-      id-token: write
     uses: ./.github/workflows/deploy.yml
     with:
       environment: production
-      cluster: ${{ vars.EKS_CLUSTER_PRODUCTION }}
       namespace: dhaba-production
       image-tag: ${{ needs.build-push.outputs.image-tag }}
     secrets: inherit

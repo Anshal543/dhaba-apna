@@ -17,6 +17,7 @@ spec:
       containers:
         - name: kitchen-worker
           image: kitchen-worker
+          imagePullPolicy: IfNotPresent
           envFrom:
             - configMapRef:
                 name: dhaba-config

@@ -79,9 +79,9 @@ Static analysis runs separately:
 ./scripts/lint-all.sh
 ```
 
-## CI/CD to AWS
+## CI/CD to EC2 with kind
 
-`.github/workflows/ci-cd.yml` runs on every push to `main` and on pull requests. Static analysis and unit tests run in parallel; on a push to `main`, both must pass before images are built and pushed to ECR with the commit SHA as the tag. Staging is deployed automatically from `k8s/overlays/staging`. Production uses `k8s/overlays/production` and waits for an approval on the `production` GitHub environment.
+`.github/workflows/ci-cd.yml` runs on every push to `main` and on pull requests. Static analysis and unit tests run in parallel; on a push to `main`, both must pass before images are built and pushed to ECR with the commit SHA as the tag. The deploy jobs then run on a self-hosted GitHub runner on EC2, pull the images, load them into a local kind cluster, and apply `k8s/overlays/staging` or `k8s/overlays/production`. Production waits for an approval on the `production` GitHub environment.
 
 One-time AWS setup, with AWS CLI credentials configured:
 
@@ -94,31 +94,38 @@ The pipeline authenticates with an IAM user access key stored in GitHub Secrets,
 ```json
 {
   "Version": "2012-10-17",
-  "Statement": [
-    {
-      "Effect": "Allow",
-      "Action": [
-        "ecr:GetAuthorizationToken", "ecr:BatchCheckLayerAvailability",
-        "ecr:GetDownloadUrlForLayer", "ecr:BatchGetImage", "ecr:PutImage",
-        "ecr:InitiateLayerUpload", "ecr:UploadLayerPart", "ecr:CompleteLayerUpload",
-        "ecr:DescribeRepositories", "ecr:CreateRepository"
-      ],
-      "Resource": "*"
-    },
-    {
-      "Effect": "Allow",
-      "Action": ["eks:DescribeCluster", "eks:ListClusters"],
-      "Resource": "*"
-    }
-  ]
+  "Statement": [{
+    "Effect": "Allow",
+    "Action": [
+      "ecr:GetAuthorizationToken", "ecr:BatchCheckLayerAvailability",
+      "ecr:GetDownloadUrlForLayer", "ecr:BatchGetImage", "ecr:PutImage",
+      "ecr:InitiateLayerUpload", "ecr:UploadLayerPart", "ecr:CompleteLayerUpload",
+      "ecr:DescribeRepositories", "ecr:CreateRepository"
+    ],
+    "Resource": "*"
+  }]
 }
 ```
 
-Add the repo configuration with the GitHub CLI (run from the repo root):
+Set up the EC2 host (x86_64, Ubuntu 24.04 or Amazon Linux 2023, at least t3.large; open inbound 22, 80 and 8080):
+
+1. Clone the repo and run `./scripts/setup-kind-host.sh` from the repo root. It installs Docker, kind and kubectl, then creates the cluster using `kind-config.yaml`. The config maps staging web on host port 80 and production web on host port 8080.
+2. Add a self-hosted runner from Settings → Actions → Runners → New self-hosted runner. Register it as the same user that ran the setup script, with the `kind` label, and install it as a service:
+
+```bash
+./config.sh --url https://github.com/<owner>/<repo> --token <token> --labels kind --unattended
+sudo ./svc.sh install
+sudo ./svc.sh start
+```
+
+Make sure `git`, `docker`, `kind` and `kubectl` are on `PATH` for the runner user. Only trusted contributors should have write access to the repo because self-hosted runners execute workflow code on the EC2 instance.
+
+Configure the repository with the GitHub CLI:
 
 ```bash
 gh variable set AWS_REGION --body us-east-1
 gh variable set AWS_ACCOUNT_ID --body 123456789012
+gh variable set KIND_CLUSTER_NAME --body dhaba
 gh secret set AWS_ACCESS_KEY_ID
 gh secret set AWS_SECRET_ACCESS_KEY
 gh secret set POSTGRES_PASSWORD
@@ -126,19 +133,9 @@ gh secret set DB_PASSWORD
 gh secret set APP_KEY --body "$(php -r 'echo "base64:".base64_encode(random_bytes(32));')"
 ```
 
-`AWS_REGION` and `AWS_ACCOUNT_ID` are variables; everything else is a secret. `REDIS_PASSWORD` is optional. Create the environments with `gh api -X POST repos/:owner/:repo/environments -f name=staging` and the same for `production`, then add required reviewers to `production` in Settings → Environments; reviewers cannot be set by the CLI easily.
+`AWS_REGION`, `AWS_ACCOUNT_ID` and `KIND_CLUSTER_NAME` are variables; everything else is a secret. `REDIS_PASSWORD` is optional. Deploy jobs are skipped until `KIND_CLUSTER_NAME` is set. Create environments with `gh api -X POST repos/:owner/:repo/environments -f name=staging` and the same for `production`, then add required reviewers to `production` in Settings → Environments; reviewers cannot be set by the CLI easily.
 
-EKS is not covered by the AWS Free Tier. Until the clusters exist, leave `EKS_CLUSTER_STAGING` and `EKS_CLUSTER_PRODUCTION` unset and the deploy jobs are skipped automatically. When a cluster is ready, set the variable and add the IAM user to the cluster access entries so `kubectl` works:
-
-```bash
-eksctl create cluster --name dhaba-staging --region us-east-1 --node-type t3.small --nodes 1
-eksctl create iamidentitymapping --cluster dhaba-staging \
-  --arn arn:aws:iam::123456789012:user/github-actions \
-  --group system:masters --username github-actions
-gh variable set EKS_CLUSTER_STAGING --body dhaba-staging
-```
-
-Repeat for production. The node instance role needs ECR pull access. Long-lived access keys are less secure than OIDC, so rotate them and never commit them.
+After a successful deploy, staging is at `http://<EC2_PUBLIC_IP>/healthz` and production is at `http://<EC2_PUBLIC_IP>:8080/healthz`. Rotate the access keys and never commit them.
 
 The manifests run Postgres and Redis inside each namespace on persistent volumes. Use RDS and ElastiCache instead for real production workloads.
 
