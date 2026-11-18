@@ -14,6 +14,7 @@ spec:
       labels:
         app: kitchen-worker
     spec:
+      terminationGracePeriodSeconds: 0
       containers:
         - name: kitchen-worker
           image: kitchen-worker

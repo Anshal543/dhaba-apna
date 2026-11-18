@@ -4,6 +4,8 @@ metadata:
   name: menu-api
 spec:
   replicas: 1
+  strategy:
+    type: Recreate
   selector:
     matchLabels:
       app: menu-api
@@ -12,6 +14,7 @@ spec:
       labels:
         app: menu-api
     spec:
+      terminationGracePeriodSeconds: 0
       containers:
         - name: menu-api
           image: menu-api

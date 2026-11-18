@@ -4,6 +4,8 @@ metadata:
   name: stats-api
 spec:
   replicas: 1
+  strategy:
+    type: Recreate
   selector:
     matchLabels:
       app: stats-api
@@ -12,6 +14,7 @@ spec:
       labels:
         app: stats-api
     spec:
+      terminationGracePeriodSeconds: 0
       containers:
         - name: stats-api
           image: stats-api
