@@ -117,15 +117,18 @@ jobs:
           kubectl -n "$NAMESPACE" rollout status deployment/redis --timeout=5m
       - name: Wait for rollout
         run: |
+          diagnose() {
+            kubectl -n "$NAMESPACE" get pods -o wide
+            kubectl -n "$NAMESPACE" get events --sort-by=.lastTimestamp
+            for app in "$@" postgres redis; do
+              kubectl -n "$NAMESPACE" get deployment "$app" -o yaml || true
+              kubectl -n "$NAMESPACE" describe pod -l "app=$app" || true
+              kubectl -n "$NAMESPACE" logs -l "app=$app" --all-containers --tail=100 || true
+            done
+          }
           for deployment in menu-api orders-api kitchen-worker stats-api web; do
-            kubectl -n "$NAMESPACE" rollout status "deployment/$deployment" --timeout=5m
-          done
-      - name: Diagnose failed rollout
-        if: failure()
-        run: |
-          kubectl -n "$NAMESPACE" get pods -o wide
-          kubectl -n "$NAMESPACE" get events --sort-by=.lastTimestamp
-          for app in menu-api orders-api kitchen-worker stats-api web postgres redis; do
-            kubectl -n "$NAMESPACE" describe pod -l "app=$app" || true
-            kubectl -n "$NAMESPACE" logs -l "app=$app" --all-containers --tail=100 || true
+            if ! kubectl -n "$NAMESPACE" rollout status "deployment/$deployment" --timeout=5m; then
+              diagnose "$deployment"
+              exit 1
+            fi
           done
